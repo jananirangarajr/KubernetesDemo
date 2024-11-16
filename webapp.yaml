@@ -1,0 +1,69 @@
+#deployment and service in a single file
+# for simplicity we are using deployment for mongo db and creating single replica. If we need multiple replica, then we need to create a state
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web-deployment
+  #every component in kubernetes can be given a key value pair name called label. label are additional identifiers of a component
+  #component can be identified by label.
+  # each pod and its replica is given unique name but labels remains same for every pod and replica
+  #all label names should be same
+  labels:
+    app: webapp
+spec:
+# for simplicity we are using deployment for mongo db and creating single replica. If we need multiple replica, then we need to create a state
+  replicas: 1
+  #kubernetes find which pod belong to which deployment using selector. Mat
+  selector:
+    matchLabels:
+      app: webapp
+      #template is configuration of the pod
+  template:
+    metadata:
+      labels:
+        app: webapp
+        #spec contains declation for containers -specifies which image and which pod
+    spec:
+      containers:
+      - name: webapp
+        image: nanajanashia/k8s-demo-app:v1.0
+        ports:
+        - containerPort: 3000
+        env:
+        - name: USER_NAME #specified in webapp image, the image expects this env varibale
+          valueFrom:
+            secretKeyRef:
+              name: mongo-secret #metadata name from secret file
+              key: mongo-user #mongo user from secret file
+        - name: USER_PWD
+          valueFrom:
+            secretKeyRef:
+              name: mongo-secret #metadata name from secret file
+              key: mongo-password #mongo user from secret file
+        - name: DB_URL
+          valueFrom:
+            configMapKeyRef: # db url value from configmap
+              name: mongo-config #metadata name from mongo-config file
+              key: mongo-url #key name of the mongo-config file data
+
+--- # seperation using 3 hypens in yaml
+
+#service configuration
+apiVersion: v1
+kind: Service
+metadata:
+  name: webapp-servie #defined in mongo-config
+spec:
+  type: NodePort # type - Cluster IP for internal service. Node port for external service to be able to accessible from browser.
+#selector selects pods to forward the request and should match the label of the pods. using label names they find each other.
+  selector:
+    app.kubernetes.io: webapp
+  ports: 
+    - protocol: TCP
+    #port can be of anything 8080 or anything. To keep it simple, using port same as container port
+      port: 3000
+      #targetPort should be same as container port. this specifies which pod port the request should be forward to
+      targetPort: 3000
+      #exposes the service on each node IP's at a static port. range between 30000 to 32767. This port specification has to be within this range
+      nodePort: 30100
+

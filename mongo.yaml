@@ -1,0 +1,63 @@
+#deployment and service in a single file
+# for simplicity we are using deployment for mongo db and creating single replica. If we need multiple replica, then we need to create a state
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo-deployment
+  #every component in kubernetes can be given a key value pair name called label. label are additional identifiers of a component
+  #component can be identified by label.
+  # each pod and its replica is given unique name but labels remains same for every pod and replica
+  #all label names should be same
+  labels:
+    app: mongo
+spec:
+# for simplicity we are using deployment for mongo db and creating single replica. If we need multiple replica, then we need to create a state
+  replicas: 1
+  #kubernetes find which pod belong to which deployment using selector. Mat
+  selector:
+    matchLabels:
+      app: mongo
+      #template is configuration of the pod
+  template:
+    metadata:
+      labels:
+        app: mongo
+        #spec contains declation for containers -specifies which image and which pod
+    spec:
+      containers:
+      - name: mongodb
+        image: mongo:5.0
+        ports:
+        - containerPort: 27017
+        env:
+        - name: MONGO_INITDB_ROOT_USERNAME
+          valueFrom:
+            secretKeyRef:
+              name: mongo-secret #metadata name from secret file
+              key: mongo-user #mongo user from secret file
+        - name: MONGO_INITDB_ROOT_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: mongo-secret #metadata name from secret file
+              key: mongo-password #mongo password from secret file
+
+
+--- # seperation using 3 hypens in yaml
+
+#service configuration
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo-servie #defined in mongo-config
+spec:
+#selector selects pods to forward the request and should match the label of the pods. using label names they find each other.
+  selector:
+    app.kubernetes.io: mongo
+  ports: 
+    - protocol: TCP
+    #port can be of anything 8080 or anything. To keep it simple, using port same as container port
+      port: 27017
+      #targetPort should be same as container port. this specifies which pod port the request should be forward to
+      targetPort: 27017
+
+
